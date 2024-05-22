@@ -8,6 +8,7 @@ from torch.nn.modules.dropout import _DropoutNd
 from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
 from dynamic_network_architectures.building_blocks.helper import maybe_convert_scalar_to_list, get_matching_pool_op
 
+from dynamic_network_architectures.building_blocks.monogenic_layer import Monogenic
 
 class PlainConvEncoder(nn.Module):
     def __init__(self,
@@ -45,6 +46,10 @@ class PlainConvEncoder(nn.Module):
         assert len(strides) == n_stages, "strides must have as many entries as we have resolution stages (n_stages). " \
                                              "Important: first entry is recommended to be 1, else we run strided conv drectly on the input"
 
+        # Modifications for monogenic layer
+        self.mono = Monogenic(sigma=0.33, wave_length=1.) # Using defualt parameters
+        input_channels = 6
+
         stages = []
         for s in range(n_stages):
             stage_modules = []
@@ -81,6 +86,7 @@ class PlainConvEncoder(nn.Module):
         self.kernel_sizes = kernel_sizes
 
     def forward(self, x):
+        x = self.mono(x)
         ret = []
         for s in self.stages:
             x = s(x)
