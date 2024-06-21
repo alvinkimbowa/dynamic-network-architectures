@@ -47,12 +47,16 @@ class PlainConvEncoder(nn.Module):
                                              "Important: first entry is recommended to be 1, else we run strided conv drectly on the input"
 
         # Modifications for monogenic layer
-        self.mono = Monogenic(sigma=0.33, wave_length=1.) # Using defualt parameters
-        input_channels = 6
+        min_wl=15
+        nscale=3
+        mult=1.75
+        input_channels = nscale*2
 
         stages = []
         for s in range(n_stages):
             stage_modules = []
+            if s == 0:
+                stage_modules.append(Monogenic(sigmaonf=0.4, min_wl=min_wl, nscale=nscale, mult=mult))
             if pool == 'max' or pool == 'avg':
                 if (isinstance(strides[s], int) and strides[s] != 1) or \
                         isinstance(strides[s], (tuple, list)) and any([i != 1 for i in strides[s]]):
@@ -86,7 +90,6 @@ class PlainConvEncoder(nn.Module):
         self.kernel_sizes = kernel_sizes
 
     def forward(self, x):
-        x = self.mono(x)
         ret = []
         for s in self.stages:
             x = s(x)
