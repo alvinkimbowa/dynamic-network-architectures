@@ -8,7 +8,7 @@ from torch.nn.modules.dropout import _DropoutNd
 from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
 from dynamic_network_architectures.building_blocks.helper import maybe_convert_scalar_to_list, get_matching_pool_op
 
-from dynamic_network_architectures.building_blocks.monogenic_layer import Monogenic
+from dynamic_network_architectures.building_blocks.monogenic_layer_ulises import Monogenic
 
 class PlainConvEncoder(nn.Module):
     def __init__(self,
@@ -28,7 +28,12 @@ class PlainConvEncoder(nn.Module):
                  nonlin_kwargs: dict = None,
                  return_skips: bool = False,
                  nonlin_first: bool = False,
-                 pool: str = 'conv'
+                 pool: str = 'conv',
+                 sigma: float = 0.4,
+                 wl: List[List[int]] = [[15]],
+                 return_rgb: bool = False,
+                 return_phase_orientation: bool = False,
+                 return_hsv: bool = False
                  ):
 
         super().__init__()
@@ -47,16 +52,27 @@ class PlainConvEncoder(nn.Module):
                                              "Important: first entry is recommended to be 1, else we run strided conv drectly on the input"
 
         # Modifications for monogenic layer
-        min_wl=15
-        nscale=3
-        mult=1.75
-        input_channels = nscale*2
+        if wl is not None:
+            nscale = len(wl)
+        else:
+            nscale = 1
+
+        return_rgb = False
+        return_phase_orientation = False
+        return_hsv = False
+
+        if return_rgb or return_hsv:
+            input_channels = nscale * 6
+        elif return_phase_orientation:
+            input_channels = nscale * 2
+        else:
+            input_channels = nscale
 
         stages = []
         for s in range(n_stages):
             stage_modules = []
             if s == 0:
-                stage_modules.append(Monogenic(sigmaonf=0.4, min_wl=min_wl, nscale=nscale, mult=mult))
+                stage_modules.append(Monogenic(sigma=sigma, wave_lengths=wl, n=nscale, return_rgb=return_rgb, return_hsv=return_hsv, return_phase_orientation=return_phase_orientation))
             if pool == 'max' or pool == 'avg':
                 if (isinstance(strides[s], int) and strides[s] != 1) or \
                         isinstance(strides[s], (tuple, list)) and any([i != 1 for i in strides[s]]):
