@@ -18,18 +18,24 @@ from torch.nn.modules import Module
 
 
 class Monogenic(Module):
-    def __init__(self, n=3, sigma=None, wave_lengths=None, return_rgb: bool = None, return_hsv: bool = None, return_phase_orientation: bool = None):
+    def __init__(self, nscale: int = None, sigma: float = None, wave_lengths=None, return_rgb: bool = None, return_hsv: bool = None, return_phase_orientation: bool = None):
         super(Monogenic, self).__init__()
+        self.nscale = nscale
+        if self.nscale is None:
+            self.nscale = 3
+
         if sigma is not None:
             self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))
         else:
             # random initialization
             self.sigma = nn.Parameter(data=torch.rand(1))
+
         if wave_lengths is not None:
             self.wave_lengths = nn.Parameter(data=torch.as_tensor(wave_lengths, dtype=torch.float))
         else:
             # random initialization
-            self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (n, 1), dtype=torch.float))
+            self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
+
         self.return_hsv = return_hsv
         self.return_rgb = return_rgb
         self.return_phase_orientation = return_phase_orientation

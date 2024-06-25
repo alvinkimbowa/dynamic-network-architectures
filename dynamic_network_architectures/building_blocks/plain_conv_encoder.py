@@ -30,6 +30,7 @@ class PlainConvEncoder(nn.Module):
                  nonlin_first: bool = False,
                  pool: str = 'conv',
                  sigma: float = None,
+                 nscale: int = 3,
                  wls: List[List[int]] = None,
                  return_rgb: bool = None,
                  return_phase_orientation: bool = None,
@@ -54,8 +55,6 @@ class PlainConvEncoder(nn.Module):
         # Modifications for monogenic layer
         if wls is not None:
             nscale = len(wls)
-        else:
-            nscale = 1
 
         if return_rgb == True or return_hsv == True:
             input_channels = nscale * 6
@@ -68,7 +67,7 @@ class PlainConvEncoder(nn.Module):
         for s in range(n_stages):
             stage_modules = []
             if s == 0:
-                stage_modules.append(Monogenic(sigma=sigma, wave_lengths=wls, n=nscale, return_rgb=return_rgb, return_hsv=return_hsv, return_phase_orientation=return_phase_orientation))
+                stage_modules.append(Monogenic(sigma=sigma, wave_lengths=wls, nscale=nscale, return_rgb=return_rgb, return_hsv=return_hsv, return_phase_orientation=return_phase_orientation))
             if pool == 'max' or pool == 'avg':
                 if (isinstance(strides[s], int) and strides[s] != 1) or \
                         isinstance(strides[s], (tuple, list)) and any([i != 1 for i in strides[s]]):
