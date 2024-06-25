@@ -18,7 +18,7 @@ from torch.nn.modules import Module
 
 
 class Monogenic(Module):
-    def __init__(self, sigma=None, wave_lengths=None, n=3, return_hsv=False, return_rgb=False, return_phase_orientation=False):
+    def __init__(self, n=3, sigma=None, wave_lengths=None, return_hsv=False, return_rgb=False, return_phase_orientation=False):
         super(Monogenic, self).__init__()
         if sigma is not None:
             self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))

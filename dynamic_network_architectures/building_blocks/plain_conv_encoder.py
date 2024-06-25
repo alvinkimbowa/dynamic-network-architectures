@@ -29,11 +29,11 @@ class PlainConvEncoder(nn.Module):
                  return_skips: bool = False,
                  nonlin_first: bool = False,
                  pool: str = 'conv',
-                 sigma: float = 0.4,
-                 wl: List[List[int]] = [[15]],
-                 return_rgb: bool = False,
-                 return_phase_orientation: bool = False,
-                 return_hsv: bool = False
+                 sigma: float = None,
+                 wls: List[List[int]] = None,
+                 return_rgb: bool = None,
+                 return_phase_orientation: bool = None,
+                 return_hsv: bool = None
                  ):
 
         super().__init__()
@@ -52,8 +52,8 @@ class PlainConvEncoder(nn.Module):
                                              "Important: first entry is recommended to be 1, else we run strided conv drectly on the input"
 
         # Modifications for monogenic layer
-        if wl is not None:
-            nscale = len(wl)
+        if wls is not None:
+            nscale = len(wls)
         else:
             nscale = 1
 
@@ -72,7 +72,7 @@ class PlainConvEncoder(nn.Module):
         for s in range(n_stages):
             stage_modules = []
             if s == 0:
-                stage_modules.append(Monogenic(sigma=sigma, wave_lengths=wl, n=nscale, return_rgb=return_rgb, return_hsv=return_hsv, return_phase_orientation=return_phase_orientation))
+                stage_modules.append(Monogenic(sigma=sigma, wave_lengths=wls, n=nscale, return_rgb=return_rgb, return_hsv=return_hsv, return_phase_orientation=return_phase_orientation))
             if pool == 'max' or pool == 'avg':
                 if (isinstance(strides[s], int) and strides[s] != 1) or \
                         isinstance(strides[s], (tuple, list)) and any([i != 1 for i in strides[s]]):

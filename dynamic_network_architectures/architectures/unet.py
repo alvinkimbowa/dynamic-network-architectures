@@ -33,7 +33,12 @@ class PlainConvUNet(nn.Module):
                  nonlin: Union[None, Type[torch.nn.Module]] = None,
                  nonlin_kwargs: dict = None,
                  deep_supervision: bool = False,
-                 nonlin_first: bool = False
+                 nonlin_first: bool = False,
+                 sigma: float = None,
+                 wls: List[List[int]] = None,
+                 return_rgb: bool = None,
+                 return_phase_orientation: bool = None,
+                 return_hsv: bool = None
                  ):
         """
         nonlin_first: if True you get conv -> nonlin -> norm. Else it's conv -> norm -> nonlin
@@ -53,7 +58,8 @@ class PlainConvUNet(nn.Module):
         self.encoder = PlainConvEncoder(input_channels, n_stages, features_per_stage, conv_op, kernel_sizes, strides,
                                         n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
-                                        nonlin_first=nonlin_first)
+                                        nonlin_first=nonlin_first, pool='conv', sigma=sigma, wls=wls, return_rgb=return_rgb,
+                                        return_phase_orientation=return_phase_orientation, return_hsv=return_hsv)
         self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
                                    nonlin_first=nonlin_first)
 
@@ -187,11 +193,20 @@ class ResidualUNet(nn.Module):
 
 
 if __name__ == '__main__':
+    from pprint import pprint
+
     data = torch.rand((1, 4, 128, 128, 128))
 
     model = PlainConvUNet(4, 6, (32, 64, 125, 256, 320, 320), nn.Conv3d, 3, (1, 2, 2, 2, 2, 2), (2, 2, 2, 2, 2, 2), 4,
-                                (2, 2, 2, 2, 2), False, nn.BatchNorm3d, None, None, None, nn.ReLU, deep_supervision=True)
-
+                                (2, 2, 2, 2, 2), False, nn.BatchNorm3d, None, None, None, nn.ReLU, deep_supervision=True, wls=None)
+    pprint({
+        "sigma": model.encoder.stages[0][0].sigma.item(),
+        "wls": model.encoder.stages[0][0].wave_lengths.item(),
+        "return_rgb": model.encoder.stages[0][0].return_rgb,
+        "return_phase_orientation": model.encoder.stages[0][0].return_phase_orientation,
+        "return_hsv": model.encoder.stages[0][0].return_hsv,
+    })
+    
     if False:
         import hiddenlayer as hl
 
