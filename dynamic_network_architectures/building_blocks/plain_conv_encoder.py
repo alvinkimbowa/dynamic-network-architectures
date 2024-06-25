@@ -57,13 +57,9 @@ class PlainConvEncoder(nn.Module):
         else:
             nscale = 1
 
-        return_rgb = False
-        return_phase_orientation = False
-        return_hsv = False
-
-        if return_rgb or return_hsv:
+        if return_rgb == True or return_hsv == True:
             input_channels = nscale * 6
-        elif return_phase_orientation:
+        elif return_phase_orientation == True:
             input_channels = nscale * 2
         else:
             input_channels = nscale

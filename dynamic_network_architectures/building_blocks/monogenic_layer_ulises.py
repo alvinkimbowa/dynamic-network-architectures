@@ -18,7 +18,7 @@ from torch.nn.modules import Module
 
 
 class Monogenic(Module):
-    def __init__(self, n=3, sigma=None, wave_lengths=None, return_hsv=False, return_rgb=False, return_phase_orientation=False):
+    def __init__(self, n=3, sigma=None, wave_lengths=None, return_rgb: bool = None, return_hsv: bool = None, return_phase_orientation: bool = None):
         super(Monogenic, self).__init__()
         if sigma is not None:
             self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))
@@ -65,11 +65,11 @@ class Monogenic(Module):
         batch, wls, channels, cols, rows = hsv_tensor_v.shape
         rgb_tensor_o = self.hsv_to_rgb(tensor=hsv_tensor_o.view(-1, channels, cols, rows), shape=(batch * wls, cols, rows))
 
-        if self.return_rgb:
+        if self.return_rgb == True:
             return torch.cat([rgb_tensor_o, rgb_tensor_v], dim=1)
-        elif self.return_hsv:
+        elif self.return_hsv == True:
             return torch.stack([hsv_tensor_v, hsv_tensor_o], dim=1)
-        elif self.return_phase_orientation:
+        elif self.return_phase_orientation == True:
             return torch.stack([fts, oris], dim=1)
         else:
             return ft
