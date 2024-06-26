@@ -24,17 +24,25 @@ class Monogenic(Module):
         if self.nscale is None:
             self.nscale = 3
 
-        if sigma is not None:
-            self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))
-        else:
-            # random initialization
-            self.sigma = nn.Parameter(data=torch.rand(1))
+        # if sigma is not None:
+        #     self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))
+        # else:
+        #     # random initialization
+        #     self.sigma = nn.Parameter(data=torch.rand(1))
 
-        if wave_lengths is not None:
-            self.wave_lengths = nn.Parameter(data=torch.as_tensor(wave_lengths, dtype=torch.float))
-        else:
-            # random initialization
-            self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
+        self.sigma = nn.Parameter(data=torch.tensor(0.4, dtype=torch.float), requires_grad=False)
+
+        # if wave_lengths is not None:
+        #     self.wave_lengths = nn.Parameter(data=torch.as_tensor(wave_lengths, dtype=torch.float))
+        # else:
+        #     # random initialization
+        #     self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
+        mult = 1.75
+        min_wl = 10
+        self.wave_lengths = nn.Parameter(
+            torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale-1)], dtype=torch.float),
+            requires_grad=False
+        )
 
         self.return_hsv = return_hsv
         self.return_rgb = return_rgb
