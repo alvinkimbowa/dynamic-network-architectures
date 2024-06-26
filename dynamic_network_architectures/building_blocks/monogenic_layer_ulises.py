@@ -40,7 +40,7 @@ class Monogenic(Module):
         mult = 1.75
         min_wl = 10
         self.wave_lengths = nn.Parameter(
-            torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale-1)], dtype=torch.float),
+            torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale)], dtype=torch.float),
             requires_grad=False
         )
 
