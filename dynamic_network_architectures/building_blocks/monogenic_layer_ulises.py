@@ -18,40 +18,46 @@ from torch.nn.modules import Module
 
 
 class Monogenic(Module):
-    def __init__(self, nscale: int = None, sigma: float = None, wave_lengths=None, return_rgb: bool = None, return_hsv: bool = None, return_phase_orientation: bool = None):
+    def __init__(self, nscale: int = None, sigma: float = None, wave_lengths=None, return_rgb: bool = None,
+                 return_hsv: bool = None, return_phase_orientation: bool = None, trainable: bool = None):
         super(Monogenic, self).__init__()
-        self.nscale = nscale
-        if self.nscale is None:
-            self.nscale = 3
-
-        # if sigma is not None:
-        #     self.sigma = nn.Parameter(data=torch.as_tensor(sigma, dtype=torch.float))
-        # else:
-        #     # random initialization
-        #     self.sigma = nn.Parameter(data=torch.rand(1))
-
-        self.sigma = nn.Parameter(data=torch.tensor(0.4, dtype=torch.float), requires_grad=False)
-
-        # if wave_lengths is not None:
-        #     self.wave_lengths = nn.Parameter(data=torch.as_tensor(wave_lengths, dtype=torch.float))
-        # else:
-        #     # random initialization
-        #     self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
-        mult = 1.75
-        min_wl = 10
-        self.wave_lengths = nn.Parameter(
-            torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale)], dtype=torch.float),
-            requires_grad=False
-        )
-
+        self.nscale = nscale if nscale is not None else 3
+        self.sigma = sigma
+        self.wave_lengths = wave_lengths
         self.return_hsv = return_hsv
         self.return_rgb = return_rgb
         self.return_phase_orientation = return_phase_orientation
+        self.trainable = trainable if trainable is not None else True
+        
+        if self.sigma is not None:
+            self.sigma = nn.Parameter(data=torch.as_tensor(self.sigma, dtype=torch.float))
+        elif self.trainable:
+            # random initialization
+            self.sigma = nn.Parameter(torch.empty(1).normal_())
+        else:
+            self.sigma = nn.Parameter(torch.as_tensor(-0.4055, dtype=torch.float))
+
+        if self.wave_lengths is not None:
+            self.wave_lengths = nn.Parameter(data=torch.as_tensor(self.wave_lengths, dtype=torch.float))
+        elif self.trainable:
+            # random initialization
+            self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
+        else:
+            min_wl = 10
+            mult = 1.7
+            self.wave_lengths = nn.Parameter(
+                torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale)], dtype=torch.float),
+                requires_grad=False
+            )
+        
+        for param in self.parameters():
+            param.requires_grad = self.trainable
+
 
     def forward(self, inputs):
         x = torch.mean(inputs, dim=1, keepdim=True)
         batch, channels, cols, rows = x.shape
-        monogenic = self.monogenic_scale(cols=cols, rows=rows, central_frequency=self.wave_lengths, sigma=self.sigma)
+        monogenic = self.monogenic_scale(cols=cols, rows=rows)
         output = self.compute_monogenic(inputs=x, monogenic=monogenic)
         return output.view(batch, -1, cols, rows)
 
@@ -158,13 +164,18 @@ class Monogenic(Module):
         radius[0, 0] = 1.
         lp = self.low_pass_filter((rows, cols), .45, 15.)
         log_gabor_denominator = (2. * torch.log(c) ** 2.).type(torch.float)
-        fo = 1. / wl.view(-1, 1, 1)
+        fo = 1. / (wl.view(-1, 1, 1) + 1e-5)
         log_rad_over_fo = torch.log(radius / fo)
         log_gabor = torch.exp(-(log_rad_over_fo * log_rad_over_fo) / log_gabor_denominator)
         log_gabor = lp * log_gabor
         return log_gabor
 
-    def monogenic_scale(self, cols, rows, central_frequency, sigma):
+    def monogenic_scale(self, cols, rows):
+        # Ensure that the central frequency is positive
+        central_frequency = torch.nn.functional.relu(self.wave_lengths)
+        # Ensure that the sigma is between 0 and 1
+        sigma = torch.nn.functional.sigmoid(self.sigma)
+        
         h1, h2 = self.riesz_trans(cols, rows)
         lg = self.log_gabor_scale(cols, rows, central_frequency, sigma)
         lg_h1 = lg * h1
