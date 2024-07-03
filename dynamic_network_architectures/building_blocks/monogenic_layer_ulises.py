@@ -164,18 +164,17 @@ class Monogenic(Module):
         radius[0, 0] = 1.
         lp = self.low_pass_filter((rows, cols), .45, 15.)
         log_gabor_denominator = (2. * torch.log(c) ** 2.).type(torch.float)
-        fo = 1. / (wl.view(-1, 1, 1) + 1e-5)
+        fo = 1. / (wl.view(-1, 1, 1))
         log_rad_over_fo = torch.log(radius / fo)
-        log_gabor = torch.exp(-(log_rad_over_fo * log_rad_over_fo) / log_gabor_denominator)
+        log_gabor = torch.exp(-(log_rad_over_fo * log_rad_over_fo) / (log_gabor_denominator + 1e-6))
         log_gabor = lp * log_gabor
         return log_gabor
 
     def monogenic_scale(self, cols, rows):
         # Ensure that the central frequency is positive
-        central_frequency = torch.nn.functional.relu(self.wave_lengths)
+        central_frequency = torch.maximum(torch.tensor(0.01), self.wave_lengths)
         # Ensure that the sigma is between 0 and 1
         sigma = torch.nn.functional.sigmoid(self.sigma)
-        
         h1, h2 = self.riesz_trans(cols, rows)
         lg = self.log_gabor_scale(cols, rows, central_frequency, sigma)
         lg_h1 = lg * h1
