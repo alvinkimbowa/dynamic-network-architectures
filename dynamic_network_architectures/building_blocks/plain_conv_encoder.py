@@ -29,9 +29,9 @@ class PlainConvEncoder(nn.Module):
                  return_skips: bool = False,
                  nonlin_first: bool = False,
                  pool: str = 'conv',
-                 sigma: float = None,
                  nscale: int = 3,
-                 wls: List[List[int]] = None,
+                 sigmaonf: float = None,
+                 min_wl: float = None,
                  return_rgb: bool = None,
                  return_phase_orientation: bool = None,
                  return_hsv: bool = None,
@@ -54,8 +54,8 @@ class PlainConvEncoder(nn.Module):
                                              "Important: first entry is recommended to be 1, else we run strided conv drectly on the input"
 
         # Modifications for monogenic layer
-        if wls is not None:
-            nscale = len(wls)
+        # if wls is not None:
+        #     nscale = len(wls)
 
         if return_rgb == True or return_hsv == True:
             input_channels = nscale * 6
@@ -70,7 +70,7 @@ class PlainConvEncoder(nn.Module):
             if s == 0:
                 stage_modules.append(
                     Monogenic(
-                        sigma=sigma, wave_lengths=wls, nscale=nscale, return_rgb=return_rgb, return_hsv=return_hsv,
+                        nscale=nscale, return_rgb=return_rgb, return_hsv=return_hsv,
                         return_phase_orientation=return_phase_orientation, trainable=trainable
                     )
                 )

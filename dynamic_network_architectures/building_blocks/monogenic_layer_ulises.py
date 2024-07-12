@@ -1,16 +1,3 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-
-__author__ = ["Abraham Sanchez", "E. Ulises Moya", "Guillermo Mendoza"]
-__copyright__ = "Copyright 2021, Gobierno de Jalisco, Universidad Autonoma de Guadalajara"
-__credits__ = ["Abraham Sanchez", "E. Ulises Moya"]
-__license__ = "MIT"
-__version__ = "0.0.1"
-__maintainer__ = ["Abraham Sanchez", "E. Ulises Moya", "Guillermo Mendoza"]
-__email__ = "abraham.sanchez@jalisco.gob.mx"
-__status__ = "Development"
-
-
 import torch
 import torch.nn as nn
 
@@ -18,45 +5,36 @@ from torch.nn.modules import Module
 
 
 class Monogenic(Module):
-    def __init__(self, nscale: int = None, sigma: float = None, wave_lengths=None, return_rgb: bool = None,
-                 return_hsv: bool = None, return_phase_orientation: bool = None, trainable: bool = None):
+    def __init__(
+            self, nscale: int = 3, sigmaonf: float = 0., wls: list = None, input_size: tuple = (256, 256),
+            min_wl: float = 3., trainable: bool = True, return_phase_orientation: bool = False,
+            return_hsv: bool = False, return_rgb: bool = False,
+        ):
         super(Monogenic, self).__init__()
-        self.nscale = nscale if nscale is not None else 3
-        self.sigma = sigma
-        self.wave_lengths = wave_lengths
+        self.nscale = nscale
+        self.trainable = trainable
         self.return_hsv = return_hsv
         self.return_rgb = return_rgb
         self.return_phase_orientation = return_phase_orientation
-        self.trainable = trainable if trainable is not None else True
-        
-        if self.sigma is not None:
-            self.sigma = nn.Parameter(data=torch.as_tensor(self.sigma, dtype=torch.float))
-        elif self.trainable:
-            # random initialization
-            self.sigma = nn.Parameter(torch.empty(1).normal_())
-        else:
-            self.sigma = nn.Parameter(torch.as_tensor(-0.4055, dtype=torch.float))
 
-        if self.wave_lengths is not None:
-            self.wave_lengths = nn.Parameter(data=torch.as_tensor(self.wave_lengths, dtype=torch.float))
-        elif self.trainable:
-            # random initialization
-            self.wave_lengths = nn.Parameter(data=torch.randint(3, 25, (self.nscale, 1), dtype=torch.float))
+        self.sigmaonf = nn.Parameter(data=torch.tensor(sigmaonf, dtype=torch.float), requires_grad=self.trainable)
+
+        self.min_wl = torch.tensor(min_wl) # According to Nyquist theorem, the minimum wave length should be >= 2 pixels (3 is a safer option)
+        self.max_wl = max(input_size) # Choosing the maximum wave length to be the largest side of the input image
+        if wls is not None:
+            assert torch.all(torch.tensor(wls) >= torch.tensor(self.min_wl)), "All wave lengths must be greater than or equal to 3"
+            # Optimizing the wave lengths in the log domain to avoid dealing with negative values
+            wls = torch.tensor(wls)
+            wls = torch.log(wls / (1 - wls))
+            self.wls = nn.Parameter(data=wls, requires_grad=self.trainable)
         else:
-            min_wl = 10
-            mult = 1.7
-            self.wave_lengths = nn.Parameter(
-                torch.tensor([[min_wl * (mult ** i)] for i in range(self.nscale)], dtype=torch.float),
-                requires_grad=False
-            )
-        
-        for param in self.parameters():
-            param.requires_grad = self.trainable
+            self.wls = nn.Parameter(data=torch.randn((self.nscale, 1)), requires_grad=self.trainable)
 
 
     def forward(self, inputs):
+        # Average input tensor channelwise (for RGB images)
         x = torch.mean(inputs, dim=1, keepdim=True)
-        batch, channels, cols, rows = x.shape
+        batch, _, cols, rows = x.shape
         monogenic = self.monogenic_scale(cols=cols, rows=rows)
         output = self.compute_monogenic(inputs=x, monogenic=monogenic)
         return output.view(batch, -1, cols, rows)
@@ -95,21 +73,19 @@ class Monogenic(Module):
             return ft
 
     def hsv_to_rgb(self, tensor, shape):
-        device = self.parameters().__next__().device
-        
         h = tensor[:, 0, :, :]
         s = tensor[:, 1, :, :]
         v = tensor[:, 2, :, :]
         c = s * v
         m = v - c
         dh = h * 6.
-        h_category = torch.as_tensor(dh, dtype=torch.int32, device=device)
+        h_category = torch.as_tensor(dh, dtype=torch.int32, device=self.get_device())
         fmodu = dh % 2
         x = c * (1. - torch.abs(fmodu - 1))
         dtype = tensor.dtype
-        rr = torch.zeros(shape, dtype=dtype, device=device)
-        gg = torch.zeros(shape, dtype=dtype, device=device)
-        bb = torch.zeros(shape, dtype=dtype, device=device)
+        rr = torch.zeros(shape, dtype=dtype, device=self.get_device())
+        gg = torch.zeros(shape, dtype=dtype, device=self.get_device())
+        bb = torch.zeros(shape, dtype=dtype, device=self.get_device())
         h0 = torch.eq(h_category, 0)
         rr = torch.where(h0, c, rr)
         gg = torch.where(h0, x, gg)
@@ -159,32 +135,37 @@ class Monogenic(Module):
         h2 = (1j * u2) / qs
         return h1, h2
 
-    def log_gabor_scale(self, cols, rows, wl, c):
-        u1, u2, radius = self.meshs((rows, cols))
+    def log_gabor_scale(self, cols, rows):
+        # Rescale wave lengths and sigmaonf to their appropriate range
+        wls = self.rescale_wls(torch.nn.functional.sigmoid(self.wls))   # Between 3 and max_wl
+        sigmaonf = torch.nn.functional.sigmoid(self.sigmaonf)           # Between 0 and 1
+
+        _, _, radius = self.meshs((rows, cols))
         radius[0, 0] = 1.
         lp = self.low_pass_filter((rows, cols), .45, 15.)
-        log_gabor_denominator = (2. * torch.log(c) ** 2.).type(torch.float)
-        fo = 1. / (wl.view(-1, 1, 1))
+        log_gabor_denominator = (2. * torch.log(sigmaonf) ** 2.).type(torch.float)
+        fo = 1. / (wls.view(-1, 1, 1))
         log_rad_over_fo = torch.log(radius / fo)
-        log_gabor = torch.exp(-(log_rad_over_fo * log_rad_over_fo) / (log_gabor_denominator + 1e-6))
+        log_gabor = torch.exp(-(log_rad_over_fo * log_rad_over_fo) / (log_gabor_denominator))
         log_gabor = lp * log_gabor
         return log_gabor
 
     def monogenic_scale(self, cols, rows):
-        # Ensure that the central frequency is positive
-        central_frequency = torch.maximum(torch.tensor(0.01), self.wave_lengths)
-        # Ensure that the sigma is between 0 and 1
-        sigma = torch.nn.functional.sigmoid(self.sigma)
         h1, h2 = self.riesz_trans(cols, rows)
-        lg = self.log_gabor_scale(cols, rows, central_frequency, sigma)
+        lg = self.log_gabor_scale(cols, rows)
         lg_h1 = lg * h1
         lg_h2 = lg * h2
         monogenic = torch.stack([lg, lg_h1, lg_h2], dim=0)
         return monogenic
 
     def mesh_range(self, size):
-        device = self.parameters().__next__().device
         cols, rows = size
-        y_grid = torch.fft.fftfreq(rows, device=device)  # Ensure grid is on same device as the parameters
-        x_grid = torch.fft.fftfreq(cols, device=device)
+        y_grid = torch.fft.fftfreq(rows, device=self.get_device())  # Ensure grid is on same device as the parameters
+        x_grid = torch.fft.fftfreq(cols, device=self.get_device())
         return torch.meshgrid(y_grid, x_grid, indexing='ij')
+    
+    def get_device(self):
+        return self.parameters().__next__().device
+    
+    def rescale_wls(self, wls):
+        return self.min_wl + wls * (self.max_wl - self.min_wl)
