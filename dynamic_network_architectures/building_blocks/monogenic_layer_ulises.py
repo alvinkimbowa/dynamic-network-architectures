@@ -21,6 +21,7 @@ class Monogenic(Module):
 
         self.min_wl = torch.tensor(min_wl) # According to Nyquist theorem, the minimum wave length should be >= 2 pixels (3 is a safer option)
         self.max_wl = max(input_size) # Choosing the maximum wave length to be the largest side of the input image
+        self.max_wl = 128 # Overriding max_wl for experimentation purposes
         if wls is not None:
             assert torch.all(torch.tensor(wls) >= torch.tensor(self.min_wl)), "All wave lengths must be greater than or equal to 3"
             # Optimizing the wave lengths in the log domain to avoid dealing with negative values
