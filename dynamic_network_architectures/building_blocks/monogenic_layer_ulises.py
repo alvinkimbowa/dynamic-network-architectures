@@ -48,9 +48,9 @@ class Monogenic(Module):
         f = torch.fft.ifft2(imf).real
         h1 = torch.fft.ifft2(imh1).real
         h2 = torch.fft.ifft2(imh2).real
-        ori = torch.atan(torch.divide(-h2, h1 + 1e-6))
-        fr = torch.sqrt(h1 ** 2 + h2 ** 2) + 1e-6
-        ft = torch.atan2(f, fr)
+        ori = torch.atan2(-h2, h1)
+        fr = torch.sqrt(h1 ** 2 + h2 ** 2)
+        ft = torch.atan2(fr, f)
         fts = self.scale_max_min(ft)
         oris = self.scale_max_min(ori)
         frs = self.scale_max_min(fr)
