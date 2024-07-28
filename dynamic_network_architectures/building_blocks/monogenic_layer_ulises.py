@@ -8,7 +8,7 @@ class Monogenic(Module):
     def __init__(
             self, nscale: int = 3, sigmaonf: float = 0., wls: list = None, input_size: tuple = (256, 256),
             min_wl: float = 3., trainable: bool = True, return_phase_orientation: bool = False,
-            return_hsv: bool = False, return_rgb: bool = False,
+            return_hsv: bool = False, return_rgb: bool = False, return_input: bool = False
         ):
         super(Monogenic, self).__init__()
         self.nscale = nscale
@@ -16,6 +16,7 @@ class Monogenic(Module):
         self.return_hsv = return_hsv
         self.return_rgb = return_rgb
         self.return_phase_orientation = return_phase_orientation
+        self.return_input = return_input
 
         self.sigmaonf = nn.Parameter(data=torch.tensor(sigmaonf, dtype=torch.float), requires_grad=self.trainable)
 
@@ -38,7 +39,10 @@ class Monogenic(Module):
         batch, _, cols, rows = x.shape
         monogenic = self.monogenic_scale(cols=cols, rows=rows)
         output = self.compute_monogenic(inputs=x, monogenic=monogenic)
-        return output.view(batch, -1, cols, rows)
+        output = output.view(batch, -1, cols, rows)
+        if self.return_input == True:
+            output = torch.cat([inputs, output], dim=1)
+        return output
 
     def compute_monogenic(self, inputs, monogenic):
         im = torch.fft.fft2(inputs)

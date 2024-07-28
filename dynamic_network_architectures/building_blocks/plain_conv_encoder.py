@@ -36,6 +36,7 @@ class PlainConvEncoder(nn.Module):
                  return_phase_orientation: bool = None,
                  return_hsv: bool = None,
                  trainable: bool = None,
+                 return_input: bool = None
                  ):
 
         super().__init__()
@@ -63,6 +64,9 @@ class PlainConvEncoder(nn.Module):
             input_channels = nscale * 2
         else:
             input_channels = nscale
+        
+        if return_input == True:
+            input_channels += 1
 
         stages = []
         for s in range(n_stages):
@@ -71,7 +75,7 @@ class PlainConvEncoder(nn.Module):
                 stage_modules.append(
                     Monogenic(
                         nscale=nscale, return_rgb=return_rgb, return_hsv=return_hsv,
-                        return_phase_orientation=return_phase_orientation, trainable=trainable
+                        return_phase_orientation=return_phase_orientation, trainable=trainable, return_input=return_input
                     )
                 )
                 

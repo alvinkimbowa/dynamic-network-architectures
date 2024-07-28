@@ -40,7 +40,8 @@ class PlainConvUNet(nn.Module):
                  return_rgb: bool = None,
                  return_phase_orientation: bool = None,
                  return_hsv: bool = None,
-                 trainable: bool = None
+                 trainable: bool = None,
+                 return_input: bool = None
                  ):
         """
         nonlin_first: if True you get conv -> nonlin -> norm. Else it's conv -> norm -> nonlin
@@ -62,7 +63,7 @@ class PlainConvUNet(nn.Module):
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
                                         nonlin_first=nonlin_first, pool='conv', nscale=nscale, 
                                         return_rgb=return_rgb, return_phase_orientation=return_phase_orientation,
-                                        return_hsv=return_hsv, trainable=trainable)
+                                        return_hsv=return_hsv, trainable=trainable, return_input=return_input)
         self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
                                    nonlin_first=nonlin_first)
 
