@@ -37,9 +37,9 @@ class PlainConvUNet(nn.Module):
                  sigmaonf: float = None,
                  nscale: int = None,
                  min_wl: float = None,
-                 return_rgb: bool = None,
-                 return_phase_orientation: bool = None,
-                 return_hsv: bool = None,
+                 return_phase: bool = None,
+                 return_ori: bool = None,
+                 return_phase_asym: bool = None,
                  trainable: bool = None,
                  return_input: bool = None
                  ):
@@ -62,8 +62,8 @@ class PlainConvUNet(nn.Module):
                                         n_conv_per_stage, conv_bias, norm_op, norm_op_kwargs, dropout_op,
                                         dropout_op_kwargs, nonlin, nonlin_kwargs, return_skips=True,
                                         nonlin_first=nonlin_first, pool='conv', nscale=nscale, 
-                                        return_rgb=return_rgb, return_phase_orientation=return_phase_orientation,
-                                        return_hsv=return_hsv, trainable=trainable, return_input=return_input)
+                                        return_phase=return_phase, return_ori=return_ori,
+                                        return_phase_asym=return_phase_asym, trainable=trainable, return_input=return_input)
         self.decoder = UNetDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision,
                                    nonlin_first=nonlin_first)
 

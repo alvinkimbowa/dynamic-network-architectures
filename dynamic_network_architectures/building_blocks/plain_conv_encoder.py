@@ -8,7 +8,7 @@ from torch.nn.modules.dropout import _DropoutNd
 from dynamic_network_architectures.building_blocks.simple_conv_blocks import StackedConvBlocks
 from dynamic_network_architectures.building_blocks.helper import maybe_convert_scalar_to_list, get_matching_pool_op
 
-from dynamic_network_architectures.building_blocks.monogenic_layer_ulises import Monogenic
+from dynamic_network_architectures.building_blocks.phase_asymmono import PhaseAsymmono2D
 
 class PlainConvEncoder(nn.Module):
     def __init__(self,
@@ -32,9 +32,9 @@ class PlainConvEncoder(nn.Module):
                  nscale: int = 3,
                  sigmaonf: float = None,
                  min_wl: float = None,
-                 return_rgb: bool = None,
-                 return_phase_orientation: bool = None,
-                 return_hsv: bool = None,
+                 return_phase: bool = None,
+                 return_ori: bool = None,
+                 return_phase_asym: bool = None,
                  trainable: bool = None,
                  return_input: bool = None
                  ):
@@ -58,13 +58,13 @@ class PlainConvEncoder(nn.Module):
         # if wls is not None:
         #     nscale = len(wls)
 
-        if return_rgb == True or return_hsv == True:
-            input_channels = nscale * 6
-        elif return_phase_orientation == True:
-            input_channels = nscale * 2
-        else:
-            input_channels = nscale
-        
+        input_channels = 0
+        if return_phase == True:
+            input_channels += 1
+        if return_ori == True:
+            input_channels += 1
+        if return_phase_asym == True:
+            input_channels += 1
         if return_input == True:
             input_channels += 1
 
@@ -73,9 +73,9 @@ class PlainConvEncoder(nn.Module):
             stage_modules = []
             if s == 0:
                 stage_modules.append(
-                    Monogenic(
-                        nscale=nscale, return_rgb=return_rgb, return_hsv=return_hsv,
-                        return_phase_orientation=return_phase_orientation, trainable=trainable, return_input=return_input
+                    PhaseAsymmono2D(
+                        nscale=nscale, return_phase=return_phase, return_ori=return_ori, return_phase_asym=return_phase_asym,
+                        trainable=trainable, return_input=return_input
                     )
                 )
                 
